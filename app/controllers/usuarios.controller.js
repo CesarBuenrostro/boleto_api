@@ -14,6 +14,11 @@ usuariosController.createUsuario = async (req, res) => {
         return res.status(400).json({message: 'Faltan datos obligatorios'});
     }
 
+    // validadr longitud mínima de la contraseña
+    if (contrasena.length < 8) {
+        return res.status(400).json({message: 'La contraseña debe tener al menos 8 caracteres'});
+    }
+
     // Normalizar correo a minúsculas
     correo = correo.trim().toLowerCase();
 
@@ -86,6 +91,13 @@ usuariosController.getUsuarios = async (req, res) => {
 usuariosController.updateUsuario = async (req, res) => {
     const { id } = req.params;
     const { nombre, correo, contrasena, rol } = req.body;
+
+    // encriptar la contraseña si se proporciona
+    if (contrasena) {
+        const salt = await bcrypt.genSalt(10);
+        contrasena = await bcrypt.hash(contrasena, salt);
+    }
+
     let query = `UPDATE usuarios SET nombre = ?, correo = ?, contrasena = ?, rol = ? WHERE id_usuario = ?`;
     let connection;
     try {
@@ -163,6 +175,7 @@ usuariosController.loginUsuario = async (req, res) => {
         res.status(200).json({
             success: true,
             token: token,
+            rol: usuario.rol,
             message: 'Login exitoso'
         });
     } catch (error) {

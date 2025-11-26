@@ -1,25 +1,34 @@
 const dbConnection = require('../config/db.js');
 const boletosController = {};
+const bcrypt = require('bcrypt')
 
 
 // CRUD Boletos - Crear, Leer, Actualizar, Eliminar
 // Crear Boleto
 boletosController.createBoleto = async (req, res) => {
-    let { id_usuario,id_ruta, id_unidad,feche_compra,codigo_qr, estado } = req.body;
+    let { id_usuario,id_ruta, id_unidad, estado } = req.body;
     let query = `INSERT INTO boletos (id_usuario,id_ruta, id_unidad,codigo_qr, estado) VALUES (?,?,?,?,?)`;
+    
+    const fecha_compra = new Date(Date.now()).toDateString();
     
     let connection;
 
     try {
+
+        codigo_qr = `${id_usuario} || ${id_ruta} || ${fecha_compra}`;
+
+        const salt = await bcrypt.genSalt(10);
+        const codigo_qr_encr = await bcrypt.hash(codigo_qr, salt);
+
         connection = await dbConnection();
-        const [result] = await connection.query(query, [id_usuario,id_ruta, id_unidad,codigo_qr, estado]);
+        const [result] = await connection.query(query, [id_usuario,id_ruta, id_unidad,codigo_qr_encr, estado]);
 
         const data = {
             id: result.insertId,
             id_usuario,
             id_ruta,
             id_unidad,
-            codigo_qr,
+            codigo_qr_encr,
             estado
         }
         if (result.affectedRows === 0) {

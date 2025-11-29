@@ -2,6 +2,10 @@ const dbConnection = require('../config/db.js');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 
+// agregar un controlaor para que un admin pueda cambiar los permisos de usuario, para eliminar la seleccion de tipo al momento de registro
+// agregar saldo de usuario en la aplicación
+
+
 const usuariosController = {};
 
 // CRUD Usuarios - Crear, Leer, Actualizar, Eliminar
@@ -90,7 +94,7 @@ usuariosController.getUsuarios = async (req, res) => {
 // Actualizar Usuario - hace falta implementar encriptación de contraseña si se actualiza
 usuariosController.updateUsuario = async (req, res) => {
     const { id } = req.params;
-    const { nombre, correo, contrasena, rol } = req.body;
+    const { nombre, correo, contrasena, rol } = req.body; // agregar matricula
 
     // encriptar la contraseña si se proporciona
     if (contrasena) {

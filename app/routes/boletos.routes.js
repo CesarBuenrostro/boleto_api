@@ -5,8 +5,8 @@ const route = new Router();
 
 route.post('/', boletosController.createBoleto);
 route.get('/', boletosController.getBoletos);
-route.put('/:id', boletosController.validateBoletoById);
-// route.put('/:id', boletosController.updateBoleto);
+route.post('/:codigo_qr', boletosController.validateBoletoById); // valida y actualiza boleto
+// route.put('/:id', boletosController.updateBoletoById);
 route.delete('/:id', boletosController.deleteBoleto);
 
 

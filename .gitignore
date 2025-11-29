@@ -168,3 +168,6 @@ $RECYCLE.BIN/
 *.lnk
 
 # End of https://www.toptal.com/developers/gitignore/api/node,windows
+
+# Notas de cambios para posterior documentación 
+/notas.txt

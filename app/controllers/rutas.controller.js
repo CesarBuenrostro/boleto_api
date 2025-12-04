@@ -5,18 +5,18 @@ const rutasController = {};
 // CRUD Rutas - Crear, leer, Actualizar, Eliminar
 // Crear Ruta
 rutasController.createRuta = async (req, res) => {
-    let { nombre, origen, destino, hora_salida, hora_llegada, estado } = req.body;
+    let { nombre, origen, destino, hora_salida, hora_llegada, estado, precio } = req.body;
     //validaciones básicas
-    if (!nombre || !origen || !destino || !hora_salida || !hora_llegada || !estado) {
+    if (!nombre || !origen || !destino || !hora_salida || !hora_llegada || !estado || !precio) {
         return res.status(400).json({message: 'Faltan datos obligatorios'});
     }
 
-    let query = `INSERT INTO rutas (nombre, origen, destino, hora_salida, hora_llegada, estado) VALUES (?,?,?,?,?,?)`;
+    let query = `INSERT INTO rutas (nombre, origen, destino, hora_salida, hora_llegada, estado, precio) VALUES (?,?,?,?,?,?, ?)`;
     let connection;
 
     try {
         connection = await dbConnection();
-        const [result] = await connection.query(query, [nombre, origen, destino, hora_salida, hora_llegada, estado]);
+        const [result] = await connection.query(query, [nombre, origen, destino, hora_salida, hora_llegada, estado, precio]);
         const data = {
             id: result.insertId,
             nombre,
@@ -24,7 +24,8 @@ rutasController.createRuta = async (req, res) => {
             destino,
             hora_salida,
             hora_llegada,
-            estado
+            estado,
+            precio
         }
         if (result.affectedRows === 0) {
             return res.status(400).json({message: 'No se pudo crear la ruta'});

@@ -5,7 +5,8 @@ const route = new Router();
 
 route.post('/', usuariosController.createUsuario);
 route.get('/', usuariosController.getUsuarios);
-// route.get('/:id', usuariosController.getUsuarioById); // Pendiente de implementar
+route.get('/:id', usuariosController.getUsuarioById); 
+route.get('/saldo/:id', usuariosController.getUsuarioSaldoById); 
 route.put('/:id', usuariosController.updateUsuario);
 route.delete('/:id', usuariosController.deleteUsuario);
 route.post('/login', usuariosController.loginUsuario);

@@ -91,6 +91,59 @@ usuariosController.getUsuarios = async (req, res) => {
 
 };
 
+// Obtener usuario por ID
+usuariosController.getUsuarioById = async (req, res) => {
+    const {id} = req.params;
+    let query = 'SELECT * FROM usuarios WHERE id_usuario = ?'
+    let connection;
+    try {
+        connection = await dbConnection();
+        const [result] = await connection.query(query, [id]);
+        if (result.affectedRows === 0) {
+            return res.status(404).json({message: "Usuario no encontrado"});
+        };
+        res.status(200).json({
+            success: "true",
+            message: "Usuario obtenido correctamente",
+            data: result
+        });
+    } catch (error) {
+        console.error('Error al obtener usuario: ', error);
+        res.status(500).json({message: "Error en el servidor"})
+    } finally {
+        if (connection) {
+            connection.end();
+        }
+    }
+}
+
+// Obtener Saldo usuario por ID
+usuariosController.getUsuarioSaldoById = async (req, res) => {
+    const {id} = req.params;
+    let query = 'SELECT saldo FROM usuarios WHERE id_usuario = ?'
+    let connection;
+    try {
+        connection = await dbConnection();
+        const [result] = await connection.query(query, [id]);
+        if (result.affectedRows === 0) {
+            return res.status(404).json({message: "Usuario no encontrado"});
+        };
+        console.log(result);
+        res.status(200).json({
+            success: "true",
+            message: "Usuario obtenido correctamente",
+            data: result
+        });
+    } catch (error) {
+        console.error('Error al obtener usuario: ', error);
+        res.status(500).json({message: "Error en el servidor"})
+    } finally {
+        if (connection) {
+            connection.end();
+        }
+    }
+}
+
 // Actualizar Usuario - hace falta implementar encriptación de contraseña si se actualiza
 usuariosController.updateUsuario = async (req, res) => {
     const { id } = req.params;
@@ -179,6 +232,14 @@ usuariosController.loginUsuario = async (req, res) => {
         res.status(200).json({
             success: true,
             token: token,
+            usuario: {
+                id: usuario.id_usuario,
+                nombre: usuario.nombre,
+                correo: usuario.correo,
+                rol: usuario.rol,
+                // AGREGAR MATRICULA
+
+            },
             rol: usuario.rol,
             message: 'Login exitoso'
         });

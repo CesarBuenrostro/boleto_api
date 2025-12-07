@@ -256,7 +256,7 @@ usuariosController.loginUsuario = async (req, res) => {
                 nombre: usuario.nombre,
                 correo: usuario.correo,
                 rol: usuario.rol,
-                // AGREGAR MATRICULA
+                matricula: usuario.matricula,
 
             },
             rol: usuario.rol,

@@ -11,10 +11,10 @@ const usuariosController = {};
 // CRUD Usuarios - Crear, Leer, Actualizar, Eliminar
 // Crear Usuario
 usuariosController.createUsuario = async (req, res) => {
-    let { nombre, correo, contrasena, rol } = req.body;
+    let { nombre, correo, contrasena, rol, matricula } = req.body;
 
     //validaciones básicas
-    if (!nombre || !correo || !contrasena || !rol) {
+    if (!nombre || !correo || !contrasena || !rol || !matricula) {
         return res.status(400).json({message: 'Faltan datos obligatorios'});
     }
 
@@ -30,18 +30,19 @@ usuariosController.createUsuario = async (req, res) => {
     const salt = await bcrypt.genSalt(10);
     contrasena =  await bcrypt.hash(contrasena, salt);
 
-    let query = `INSERT INTO usuarios (nombre, correo, contrasena, rol) VALUES (?,?,?,?)`;
+    let query = `INSERT INTO usuarios (nombre, correo, contrasena, rol, matricula) VALUES (?,?,?,?,?)`;
     let connection;
 
     try {
         connection = await dbConnection();
-        const [result] = await connection.query(query, [nombre, correo, contrasena, rol]);
+        const [result] = await connection.query(query   , [nombre, correo, contrasena, rol, matricula]);
         const data = {
             id: result.insertId,
             nombre,
             correo,
             contrasena,
-            rol
+            rol,
+            matricula
         }
         if (result.affectedRows === 0) {
             return res.status(400).json({message: 'No se pudo crear el usuario'});
@@ -147,35 +148,53 @@ usuariosController.getUsuarioSaldoById = async (req, res) => {
 // Actualizar Usuario - hace falta implementar encriptación de contraseña si se actualiza
 usuariosController.updateUsuario = async (req, res) => {
     const { id } = req.params;
-    const { nombre, correo, contrasena, rol } = req.body; // agregar matricula
+    let { nombre, correo, contrasena, rol, saldo, matricula } = req.body;
 
-    // encriptar la contraseña si se proporciona
-    if (contrasena) {
-        const salt = await bcrypt.genSalt(10);
-        contrasena = await bcrypt.hash(contrasena, salt);
-    }
-
-    let query = `UPDATE usuarios SET nombre = ?, correo = ?, contrasena = ?, rol = ? WHERE id_usuario = ?`;
-    let connection;
     try {
-        connection = await dbConnection();
-        const [result] = await connection.query(query, [nombre, correo, contrasena, rol, id]);
-        if (result.affectedRows === 0) {
-            return res.status(404).json({message: 'Usuario no encontrado o sin cambios'});
+        // Encriptar contraseña si viene en la petición
+        if (contrasena) {
+            const salt = await bcrypt.genSalt(10);
+            contrasena = await bcrypt.hash(contrasena, salt);
         }
+
+        // Crear lista dinámica de campos a actualizar
+        const campos = [];
+        const valores = [];
+
+        const posiblesCampos = { nombre, correo, contrasena, rol, saldo, matricula };
+
+        for (const campo in posiblesCampos) {
+            if (posiblesCampos[campo] !== undefined) {
+                campos.push(`${campo} = ?`);
+                valores.push(posiblesCampos[campo]);
+            }
+        }
+
+        if (campos.length === 0) {
+            return res.status(400).json({ message: 'No se enviaron datos para actualizar' });
+        }
+
+        const query = `UPDATE usuarios SET ${campos.join(', ')} WHERE id_usuario = ?`;
+        valores.push(id);
+
+        const connection = await dbConnection();
+        const [result] = await connection.query(query, valores);
+
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ message: 'Usuario no encontrado' });
+        }
+
         res.status(200).json({
             success: true,
-            message: 'Usuario actualizado exitosamente'
+            message: 'Usuario actualizado correctamente'
         });
+
     } catch (error) {
-        console.error('Error al actualizar el usuario: ', error);
-        res.status(500).json({message: 'Error en el servidor'});
-    } finally {
-        if (connection) {
-            connection.end();
-        }
+        console.error('Error al actualizar usuario: ', error);
+        res.status(500).json({ message: 'Error en el servidor' });
     }
 };
+
 
 // Eliminar Usuario
 usuariosController.deleteUsuario = async (req, res) => {

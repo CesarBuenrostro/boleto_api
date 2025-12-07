@@ -70,11 +70,25 @@ boletosController.createBoleto = async (req, res) => {
 
 // Mostrar todos los Boletos
 boletosController.getBoletos = async (req, res) => {
-    let query = 'SELECT * FROM boletos';
+    const { usuario, estado } = req.query;
+    
+    if (!usuario) {
+        return res.status(400).json({ error: "Falta el parámetro usuario" });
+    }
+
+    let query = 'SELECT * FROM boletos WHERE id_usuario = ?';
+    const params = [usuario];
+
+    if (estado) {
+        query += " AND estado = ?";
+        params.push(estado);
+    };
+
     let connection;
     try {
         connection = await dbConnection();
-        const [result] = await connection.query(query);
+        const [result] = await connection.execute(query, params);
+        
         if (result.length === 0) {
             res.status(200).json({
                 success: false,
@@ -96,6 +110,8 @@ boletosController.getBoletos = async (req, res) => {
         }
     }
 }
+
+
 // validar Boleto
 boletosController.updateBoletoById = async (req, res) => {
     const { id } = req.params;

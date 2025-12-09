@@ -20,22 +20,48 @@ boletosController.createBoleto = async (req, res) => {
 
     try {
         connection = await dbConnection();
-        const fecha = new Date();
 
-        // 1. Crear el registro del pago (id_pago autoincremental)
+        // 🚨 INICIAR TRANSACCIÓN
+        await connection.beginTransaction();
+
+        // 1. Obtener saldo actual del usuario
+        const [usuarioResult] = await connection.execute(
+            `SELECT saldo FROM usuarios WHERE id_usuario = ?`,
+            [id_usuario]
+        );
+
+        if (usuarioResult.length === 0) {
+            return res.status(404).json({ success: false, message: "Usuario no encontrado" });
+        }
+
+        const saldoActual = usuarioResult[0].saldo;
+
+        if (saldoActual < monto) {
+            return res.status(400).json({ success: false, message: "Saldo insuficiente" });
+        }
+
+        // 2. Descontar saldo
+        const nuevoSaldo = saldoActual - monto;
+        await connection.execute(
+            `UPDATE usuarios SET saldo = ? WHERE id_usuario = ?`,
+            [nuevoSaldo, id_usuario]
+        );
+
+        // 3. Registrar el pago
+        const fecha = new Date();
         const [pagoResult] = await connection.execute(
-            `INSERT INTO pagos (id_usuario, fecha_pago, total_boletos, monto, metodo) 
+            `INSERT INTO pagos (id_usuario, fecha_pago, total_boletos, monto, metodo)
              VALUES (?, ?, ?, ?, ?)`,
             [id_usuario, fecha, cantidad, monto, metodo]
         );
 
         const id_pago = pagoResult.insertId;
 
-        // 2. Crear los boletos asociados al pago
+        // 4. Registrar los boletos asociados
         const boletos = [];
 
         for (let i = 0; i < cantidad; i++) {
-            const codigo_qr = uuidv4(); // Generar un QR único por boleto
+            const codigo_qr = uuidv4(); 
 
             const [boletoResult] = await connection.execute(
                 `INSERT INTO boletos (id_pago, id_usuario, id_ruta, id_unidad, codigo_qr, estado)
@@ -49,23 +75,34 @@ boletosController.createBoleto = async (req, res) => {
             });
         }
 
+        // 🚨 CONFIRMAR TODO
+        await connection.commit();
+
         return res.status(201).json({
             success: true,
-            message: "Boletos creados exitosamente",
+            message: "Boletos creados y saldo actualizado",
             data: {
                 id_pago,
                 cantidad,
+                monto,
+                nuevoSaldo,
                 boletos
             }
         });
 
     } catch (error) {
         console.error("Error al crear boleto:", error);
+
+        // 🚨 REVERSAR TODO SI FALLA ALGO
+        if (connection) await connection.rollback();
+
         return res.status(500).json({ success: false, message: "Error en el servidor" });
+
     } finally {
         if (connection) connection.end();
     }
 };
+
 
 
 // Mostrar todos los Boletos

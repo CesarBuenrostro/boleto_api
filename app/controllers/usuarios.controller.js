@@ -269,4 +269,61 @@ usuariosController.loginUsuario = async (req, res) => {
 }
 
 
+usuariosController.recargarSaldo = async (req, res) => {
+    const { id } = req.params;
+    const { monto } = req.body;
+
+    try {
+        if (!monto || isNaN(monto) || monto <= 0) {
+            return res.status(400).json({
+                success: false,
+                message: 'Monto inválido'
+            });
+        }
+
+        const connection = await dbConnection();
+
+        // Obtener saldo actual
+        const [rows] = await connection.query(
+            "SELECT saldo FROM usuarios WHERE id_usuario = ?",
+            [id]
+        );
+
+        if (rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: "Usuario no encontrado"
+            });
+        }
+
+        const saldoActual = parseFloat(rows[0].saldo);
+        const nuevoSaldo = saldoActual + parseFloat(monto);
+
+        // Actualizar el saldo
+        await connection.query(
+            "UPDATE usuarios SET saldo = ? WHERE id_usuario = ?",
+            [nuevoSaldo, id]
+        );
+
+        res.status(200).json({
+            success: true,
+            message: "Saldo recargado correctamente",
+            data: {
+                id_usuario: id,
+                saldo_anterior: saldoActual,
+                monto_recargado: monto,
+                saldo_nuevo: nuevoSaldo
+            }
+        });
+
+    } catch (error) {
+        console.error("Error al recargar saldo:", error);
+        res.status(500).json({
+            success: false,
+            message: "Error en el servidor"
+        });
+    }
+};
+
+
 module.exports = usuariosController;

@@ -6,7 +6,7 @@ const route = new Router();
 route.post('/', usuariosController.createUsuario);
 route.get('/', usuariosController.getUsuarios);
 route.get('/:id', usuariosController.getUsuarioById); 
-route.post('/usuarios/:id/recargar', usuariosController.recargarSaldo);
+route.post('/:id/recargar', usuariosController.recargarSaldo);
 route.get('/saldo/:id', usuariosController.getUsuarioSaldoById); 
 route.put('/:id', usuariosController.updateUsuario);
 route.delete('/:id', usuariosController.deleteUsuario);

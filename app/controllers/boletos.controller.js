@@ -233,10 +233,9 @@ boletosController.validateBoletoById = async (req, res) => {
 
     const [update] = await connection.execute(
       `UPDATE boletos
-       SET estado = ?, validated_at = ?, /* validated_by = ? , */ 
-           fecha_validacion = ?
+       SET estado = ?, validated_at = ?
        WHERE id_boleto = ?`,
-      ["validado", validatedAt, validatedAt, boleto.id_boleto]
+      ["validado", validatedAt, boleto.id_boleto]
       // si usas validated_by: ["validado", validatedAt, validatedBy, boleto.id_boleto]
     );
 

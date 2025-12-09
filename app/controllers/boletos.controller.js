@@ -149,7 +149,7 @@ boletosController.getBoletos = async (req, res) => {
 }
 
 
-// validar Boleto
+// actualizar Boleto
 boletosController.updateBoletoById = async (req, res) => {
     const { id } = req.params;
     let query = 'UPDATE boletos SET estado="validado" WHERE id_boleto = ?';
@@ -184,62 +184,93 @@ boletosController.updateBoletoById = async (req, res) => {
 };
 
 boletosController.validateBoletoById = async (req, res) => {
-    const { codigo_qr } = req.params; 
-    let connection;
+  const { codigo_qr } = req.params;
+  let connection;
 
-    try {
-        if (!codigo_qr) {
-            return res.status(400).json({ success: false, message: "Código QR requerido" });
-        }
-
-        connection = await dbConnection();
-
-        // 1. Buscar boleto por su UUID
-        const [rows] = await connection.query(
-            `SELECT * FROM boletos WHERE codigo_qr = ?`,
-            [codigo_qr]
-        );
-
-        if (rows.length === 0) {
-            return res.status(404).json({ success: false, message: "QR no válido" });
-        }
-
-        const boleto = rows[0];
-
-        // 2. Revisar si ya está validado
-        if (boleto.estado === "validado") {
-            return res.status(200).json({
-                success: false,
-                message: "Este boleto ya fue validado previamente",
-                data: boleto
-            });
-        }
-
-        // 3. Actualizar estado
-        const [update] = await connection.query(
-            `UPDATE boletos SET estado = "validado" WHERE id_boleto = ?`,
-            [boleto.id_boleto]
-        );
-
-        if (update.affectedRows === 0) {
-            return res.status(500).json({ success: false, message: "No se pudo validar el boleto" });
-        }
-
-        boleto.estado = "validado";
-
-        res.status(200).json({
-            success: true,
-            message: "Boleto validado correctamente",
-            data: boleto
-        });
-
-    } catch (error) {
-        console.error("Error al validar boleto:", error);
-        res.status(500).json({ success: false, message: "Error en el servidor" });
-    } finally {
-        if (connection) connection.end();
+  try {
+    if (!codigo_qr) {
+      return res.status(400).json({ success: false, message: "Código QR requerido" });
     }
+
+    connection = await dbConnection();
+
+    // Iniciamos transacción para evitar race-conditions
+    await connection.beginTransaction();
+
+    // 1) Buscar el boleto con FOR UPDATE para bloquear la fila en esta transacción
+    const [rows] = await connection.execute(
+      `SELECT id_boleto, id_usuario, estado, id_ruta, id_unidad, id_pago
+       FROM boletos
+       WHERE codigo_qr = ?
+       FOR UPDATE`,
+      [codigo_qr]
+    );
+
+    if (rows.length === 0) {
+      await connection.rollback();
+      return res.status(404).json({ success: false, message: "QR no válido" });
+    }
+
+    const boleto = rows[0];
+
+    // 2) Verificar si ya está validado
+    if (boleto.estado === "validado") {
+      await connection.rollback();
+      return res.status(409).json({ // 409 Conflict es apropiado aquí
+        success: false,
+        message: "Este boleto ya fue validado previamente",
+        data: {
+          id_boleto: boleto.id_boleto,
+          estado: boleto.estado
+        }
+      });
+    }
+
+    // 3) Actualizar estado y guardar timestamp (y opcionalmente quién valida)
+    const validatedAt = new Date();
+    // Si quieres guardar quién valida, obtén el id del chofer desde req (ej: req.user.id)
+    // const validatedBy = req.user?.id || null;
+
+    const [update] = await connection.execute(
+      `UPDATE boletos
+       SET estado = ?, validated_at = ?, /* validated_by = ? , */ 
+           fecha_validacion = ?
+       WHERE id_boleto = ?`,
+      ["validado", validatedAt, validatedAt, boleto.id_boleto]
+      // si usas validated_by: ["validado", validatedAt, validatedBy, boleto.id_boleto]
+    );
+
+    if (update.affectedRows === 0) {
+      await connection.rollback();
+      return res.status(500).json({ success: false, message: "No se pudo validar el boleto" });
+    }
+
+    // 4) Commit de la transacción
+    await connection.commit();
+
+    // 5) Retornar sólo los campos útiles (evitar exponer datos sensibles)
+    return res.status(200).json({
+      success: true,
+      message: "Boleto validado correctamente",
+      data: {
+        id_boleto: boleto.id_boleto,
+        id_usuario: boleto.id_usuario,
+        estado: "validado",
+        validated_at: validatedAt
+      }
+    });
+
+  } catch (error) {
+    console.error("Error al validar boleto:", error);
+    if (connection) {
+      try { await connection.rollback(); } catch (e) { console.error("Rollback failed:", e); }
+    }
+    return res.status(500).json({ success: false, message: "Error en el servidor" });
+  } finally {
+    if (connection) connection.end();
+  }
 };
+
 
 // Eliminar Boleto
 boletosController.deleteBoleto = async (req, res) => {
